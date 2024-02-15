@@ -32,13 +32,15 @@ class Tasks:
                     dates[i] = f"{received_dates[i]}-{today.year}"
                 case 3:
                     dates[i] = received_dates[i]
-        self.tasks.append([name, dates[0], dates[1], dates[2], None])
+        self.tasks.append([name, dates[0], dates[1], dates[2], None, None])
 
     def mark(self, name):
         ''' TODO mark a certain task as completed '''
         for task in self.tasks:
             if task[0] == name:
+                today = dt.date.today()
                 task[4] = 'x'
+                task[5] = '{:02d}-{:02d}-{:4d}'.format(today.day,today.month,today.year)
 
     def list(self, complete=False):
         ''' Todo list the tasks '''
@@ -56,6 +58,10 @@ class Tasks:
             case 'ignore':
                 sorted_not_done = sorted([task for task in self.tasks[1:] if task[4] != 'x'], key = lambda column: column[sort_by])
                 return tabulate(sorted_not_done, headers=self.tasks[0])
+            case 'first':
+                sorted_marked = sorted([task for task in self.tasks[1:] if task[4] == 'x'], key = lambda column: column[5])
+                return tabulate(sorted_marked, headers=self.tasks[0])
+
     def __repr__(self):
         '''  a printable representation of the tasks'''
         return tabulate(self.tasks, headers = "firstrow")
@@ -74,7 +80,7 @@ class Tasks:
 def main():
     if not os.path.isfile('tasks.csv'):
         f = open('tasks.csv', "w")
-        f.write('Name,Start,End,Reminder,Status')
+        f.write('Name,Start,End,Reminder,Status,Completed_in')
         f.close()
     tasks_instance = Tasks()
     optlist, args = getopt.getopt(sys.argv[1:], 'd:m:c:t:')
@@ -84,6 +90,7 @@ def main():
             tasks_instance.delete(optlist[0][1])
         case '-m':
             tasks_instance.mark(optlist[0][1])
+            print(tasks_instance.display(done='first'))
         case '-t':
             tasks_instance.new_task(optlist[0][1], args)
         case '-c':
