@@ -13,6 +13,7 @@ class Tasks:
             reader = csv.reader(task_file)        
             for line in reader:
                 self.tasks.append(line)
+
     def to_markdown(self):
         ''' TODO transform the csv file with the tasks into a markdown file '''
         pass
@@ -27,19 +28,21 @@ class Tasks:
                 case 1:
                     today = dt.date.today()
                     if today.day <= int(received_dates[i]):
-                        dates[i] = '{:2s}-{:02d}-{:4d}'.format(received_dates[i], today.month, today.year)
+                        dates[i] = '{:02d}-{:02d}-{:4d}'.format(int(received_dates[i]), today.month, today.year)
                     elif today.month == 12:
-                        dates[i] = '{:2s}-{:02d}-{:4d}'.format(received_dates[i], 1, today.year)
+                        dates[i] = '{:02d}-{:02d}-{:4d}'.format(int(received_dates[i]), 1, today.year)
                     else:
-                        dates[i] = '{:2s}-{:02d}-{:4d}'.format(received_dates[i], today.month + 1, today.year)
+                        dates[i] = '{:02d}-{:02d}-{:4d}'.format(int(received_dates[i]), today.month + 1, today.year)
                 case 2:
                     today = dt.date.today()
-                    if today.month > int(received_dates[i].split('-')[1]):
-                        dates[i] = f"{received_dates[i]}-{today.year+1}"
+                    task_day, task_month = int(received_dates[i].split('-')) 
+                    if (today.month > task_month):
+                        dates[i] = '{:02d}-{:02d}-{:4d}'.format(int(task_day), int(task_month), today.year + 1)
                     else:
-                        dates[i] = f"{received_dates[i]}-{today.year}"
+                        dates[i] = '{:02d}-{:02d}-{:4d}'.format(int(task_day), int(task_month), today.year)
                 case 3:
-                    dates[i] = received_dates[i]
+                    task_date = received_dates[i].split('-')
+                    dates[i] = '{:02d}-{:02d}-{:4d}'.format(int(task_date[0]), int(task_date[1]), task_date[2])
         self.tasks.append([name, dates[0], dates[1], dates[2], None, None])
 
     def mark(self, name):
@@ -77,7 +80,7 @@ class Tasks:
             case 'only':
                 '''only marked tasks are shown'''
                 sorted_marked = sorted([task for task in self.tasks[1:] if task[4] == 'x'], 
-                                       key = lambda date: ''.join(date[sort_by].split('-')[::-1]))
+                                       key = lambda date: ''.join(date[sort_by].split('-')[::-1]))[::-1]
                 return tabulate(sorted_marked, headers=self.tasks[0])
 
     def __repr__(self):
@@ -95,32 +98,37 @@ class Tasks:
             for task in self.tasks:
                 writer.writerow(task)
 
-def main():
-    if not os.path.isfile('tasks.csv'):
-        f = open('tasks.csv', "w")
-        f.write('Name,Start,End,Reminder,Status,Completed_in')
-        f.close()
-    tasks_instance = Tasks()
-    optlist, args = getopt.getopt(sys.argv[1:], 'd:m:c:t:v')
+def process_cl_args():
+    match len(sys.argv):
+        case 1:
+            raise Exception("you're supposed to enter a comand, type -h for help")
+        case 2:
+            command = sys.argv[1]
+            args = []
+            return command, args
+        case _:
+            command = sys.argv[1]
+            args = sys.argv[2:]
+            return command, args
 
-    match optlist[0][0]:
-        case '-d':
+def process_command(command, args):
+
+    tasks_instance = Tasks()
+    match command:
+        case 'del':
             '''deleting a task'''
-            tasks_instance.delete(optlist[0][1])
+            tasks_instance.delete(args[0])
             print(tasks_instance.display(done='normal'))
-        case '-m':
+        case 'mark':
             '''marking a task'''
-            tasks_instance.mark(optlist[0][1])
+            tasks_instance.mark(args[0])
             print(tasks_instance.display(done='only',sort_by=5))
-        case '-t':
+        case 'add':
             '''create a task'''
-            tasks_instance.new_task(optlist[0][1], args)
+            tasks_instance.new_task(args[0], args[1:])
             print(tasks_instance.display())
-        case '-c':
-            pass
-        case '-v':
+        case 'list':
             '''visualizing the tasks'''
-            print(args)
             if len(args)==2:
                 print('hi')
                 print(tasks_instance.display(done=args[1], sort_by=int(args[0])))
@@ -129,6 +137,15 @@ def main():
             else:
                 print(tasks_instance.display())
     tasks_instance.save()
+    
+             
+def main():
 
+    if not os.path.isfile('tasks.csv'):
+        f = open('tasks.csv', "w")
+        f.write('Name,Start,End,Reminder,Status,Completed_in')
+        f.close()
+    command, args = process_cl_args()
+    process_command(command, args)
 
 main()
