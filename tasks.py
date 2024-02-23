@@ -1,7 +1,7 @@
 import os
 import sys
-import getopt
 import csv
+import re
 import datetime as dt
 from tabulate import tabulate
 
@@ -48,7 +48,7 @@ class Tasks:
     def mark(self, name):
         ''' TODO mark a certain task as completed '''
         for task in self.tasks:
-            if task[0] == name:
+            if re.match(name,task[0]):
                 today = dt.date.today()
                 task[4] = 'x'
                 task[5] = '{:02d}-{:02d}-{:4d}'.format(today.day,today.month,today.year)
@@ -57,39 +57,52 @@ class Tasks:
         ''' Todo list the tasks '''
         pass
 
-    def display(self, done = 'ignore', sort_by = 2):
+    def display(self, option = 'simple', sort_by = 1):
         '''display the tasks in usefull ways'''
-        match done:
-            case 'normal':
+        def key_function(date):
+            if not date[sort_by]:
+                return '999999999'
+            else:
+                 return ''.join(date[sort_by].split('-')[::-1])
+        match option:
+            case 'all':
                 '''display in the chosen sorting ignoring if tasks are marked or not'''
-                return tabulate(sorted(self.tasks[1:], 
-                                key = lambda date: ''.join(date[sort_by].split('-')[::-1])),
-                                 headers = self.tasks[0])
-            case 'last':
+                return tabulate(sorted(self.tasks[1:],key = key_function),
+                                headers = self.tasks[0])
+            case 'ordered':
                 '''marked tasks appear last'''
                 sorted_not_done = sorted([task for task in self.tasks[1:] if task[4] != 'x'], 
-                                         key = lambda date: ''.join(date[sort_by].split('-')[::-1]))
+                                         key = key_function)
                 sorted_marked = sorted([task for task in self.tasks[1:] if task[4] == 'x'], 
-                                       key = lambda date: ''.join(date[sort_by].split('-')[::-1]))
+                                       key = key_function)
                 return tabulate(sorted_not_done+sorted_marked, headers=self.tasks[0])
-            case 'ignore':
-                '''marked tasks are not shown'''
-                sorted_not_done = sorted([task for task in self.tasks[1:] if task[4] != 'x'], 
-                                         key = lambda date: ''.join(date[sort_by].split('-')[::-1]))
+            case 'simple':
+                '''intended to be used for simple viewing of the tasks to be done,
+                marked tasks and columns related to marking are not shown'''
+                sorted_not_done = sorted([task[:4] for task in self.tasks[1:] if task[4] != 'x'], 
+                                         key = key_function)
                 return tabulate(sorted_not_done, headers=self.tasks[0])
-            case 'only':
-                '''only marked tasks are shown'''
+            case 'marked':
+                '''intended to be used to visualize the marked tasks only marked tasks are shown'''
                 sorted_marked = sorted([task for task in self.tasks[1:] if task[4] == 'x'], 
-                                       key = lambda date: ''.join(date[sort_by].split('-')[::-1]))[::-1]
+                                       key = key_function)
                 return tabulate(sorted_marked, headers=self.tasks[0])
+            case '-h':
+                return 'The available options are: all, ordered, simple, marked'
+            case _:
+                '''person inserted a wrong command for viewing'''
+                raise Exception('''You are using view with an unavailable option\n
+                                The available options are: all, ordered, simple, marked''')
 
     def __repr__(self):
         '''  a printable representation of the tasks'''
         return tabulate(self.tasks, headers = "firstrow")
 
     def delete(self, name):
-        ''' TODO delete a particular task '''
-        pass
+        ''' delete a particular task, not through regex because its risky'''
+        for task in self.tasks:
+            if task[0] == name:
+                self.tasks.remove(task)
 
     def save(self):
         '''saves the tasks as a csv file'''
@@ -101,7 +114,9 @@ class Tasks:
 def process_cl_args():
     match len(sys.argv):
         case 1:
-            raise Exception("you're supposed to enter a comand, type -h for help")
+            command = '-h'
+            args = []
+            return command, args
         case 2:
             command = sys.argv[1]
             args = []
@@ -118,11 +133,11 @@ def process_command(command, args):
         case 'del':
             '''deleting a task'''
             tasks_instance.delete(args[0])
-            print(tasks_instance.display(done='normal'))
+            print(tasks_instance.display(option='all'))
         case 'mark':
             '''marking a task'''
             tasks_instance.mark(args[0])
-            print(tasks_instance.display(done='only',sort_by=5))
+            print(tasks_instance.display(option='only',sort_by=5))
         case 'add':
             '''create a task'''
             tasks_instance.new_task(args[0], args[1:])
@@ -130,12 +145,31 @@ def process_command(command, args):
         case 'list':
             '''visualizing the tasks'''
             if len(args)==2:
-                print('hi')
-                print(tasks_instance.display(done=args[1], sort_by=int(args[0])))
+                sorting_options = {'name':0, 'start': 1, 'end': 2, 'reminder':3,
+                                    'status':4, 'completed_in':5, 'completed': 5}
+                print(tasks_instance.display(option=args[0], sort_by=sorting_options[args[1]]))
             elif len(args)==1:
-                print(tasks_instance.display(sort_by=int(args[0])))                
+                print(tasks_instance.display(option=args[0]))
             else:
                 print(tasks_instance.display())
+        case '-h':
+            print(
+'''
+usage: tasks.py [command] *args, where *args depend on the chosen command
+
+Available commands:
+add [start] [optional: end] [optional: reminder_date]
+dates should be either in ther format dd-mm-yyyy, dd-mm with year infered, or dd with mm-yyyy infered
+
+mark [regex]
+marks any tasks whose names match the regex
+
+del [name]
+delete any tasks with the specified name
+
+list [optional:option] [optional:sort_by]
+options are: [all, ordered, simple, marked]
+sort_by can be any column in the tasks file''')
     tasks_instance.save()
     
              
@@ -143,7 +177,7 @@ def main():
 
     if not os.path.isfile('tasks.csv'):
         f = open('tasks.csv', "w")
-        f.write('Name,Start,End,Reminder,Status,Completed_in')
+        f.write('name,start,end,reminder,status,completed_in')
         f.close()
     command, args = process_cl_args()
     process_command(command, args)
