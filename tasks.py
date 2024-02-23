@@ -81,7 +81,7 @@ class Tasks:
                 marked tasks and columns related to marking are not shown'''
                 sorted_not_done = sorted([task[:4] for task in self.tasks[1:] if task[4] != 'x'], 
                                          key = key_function)
-                return tabulate(sorted_not_done, headers=self.tasks[0])
+                return tabulate(sorted_not_done, headers=self.tasks[0][:4])
             case 'marked':
                 '''intended to be used to visualize the marked tasks only marked tasks are shown'''
                 sorted_marked = sorted([task for task in self.tasks[1:] if task[4] == 'x'], 
@@ -137,7 +137,7 @@ def process_command(command, args):
         case 'mark':
             '''marking a task'''
             tasks_instance.mark(args[0])
-            print(tasks_instance.display(option='only',sort_by=5))
+            print(tasks_instance.display(option='marked',sort_by=5))
         case 'add':
             '''create a task'''
             tasks_instance.new_task(args[0], args[1:])
