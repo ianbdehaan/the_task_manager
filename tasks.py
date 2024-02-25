@@ -3,8 +3,8 @@ import sys
 import csv
 import re
 import datetime as dt
-from tabulate import tabulate
-
+import calendar
+from tabulate import tabulate 
 
 class Tasks:
     def __init__(self):
@@ -42,9 +42,34 @@ class Tasks:
                         dates[i] = '{:02d}-{:02d}-{:4d}'.format(int(task_day), int(task_month), today.year)
                 case 3:
                     task_date = received_dates[i].split('-')
-                    dates[i] = '{:02d}-{:02d}-{:4d}'.format(int(task_date[0]), int(task_date[1]), task_date[2])
+                    dates[i] = '{:02d}-{:02d}-{:4d}'.format(int(task_date[0]), int(task_date[1]), int(task_date[2]))
         self.tasks.append([name, dates[0], dates[1], dates[2], None, None])
 
+    def calendar(self, month = dt.date.today().month + 1, year = dt.date.today().year):
+        calendar.setfirstweekday(calendar.SUNDAY)
+        cal = calendar.monthcalendar(year, month)
+ 
+        # print header
+        print('\n           {:02d}-{:4d}       '.format(month, year))
+        print('    Su Mo Tu We Th Fr Sa ')
+        # draw calendar views
+        red_color = "\033[1;31m"
+        reset = "\033[0;0m"
+        end_dates_todo = [task[2] for task in self.tasks[1:] if (task[2] and not task[4])]
+        end_dates_marked = [task[2] for task in self.tasks[1:] if (task[2] and task[4])]
+        end_days_this_month_todo = [int(date.split('-')[0]) for date in end_dates_todo if int(date.split('-')[1]) == month]
+        end_days_this_month_marked = [int(date.split('-')[0]) for date in end_dates_marked if int(date.split('-')[1]) == month]
+        for week in cal:
+            sys.stdout.write('    ')
+            for day in week:
+                if day == 0:
+                     sys.stdout.write('   ')  # 3 spaces for blank days
+                elif day in end_days_this_month_todo:
+                     sys.stdout.write(red_color + '{:02d} '.format(day) + reset)
+                else:
+                     sys.stdout.write('{:02d} '.format(day))
+            sys.stdout.write('\b \n')
+        sys.stdout.write('\n')
     def mark(self, name):
         ''' TODO mark a certain task as completed '''
         for task in self.tasks:
@@ -152,6 +177,8 @@ def process_command(command, args):
                 print(tasks_instance.display(option=args[0]))
             else:
                 print(tasks_instance.display())
+        case 'cal':
+            tasks_instance.calendar()
         case '-h':
             print(
 '''
